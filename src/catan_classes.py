@@ -15,10 +15,10 @@ class Road:
         return 'Road(color:' + self.color + ', points:[' + str(self.points[0]) + '->' + str(self.points[1]) + '])'
 
 class House:
-    def __init__(self, color, point):
+    def __init__(self, color, point, is_big_house=False):
         self.color = color
         self.point = point
-        self.is_big_house = False
+        self.is_big_house = is_big_house
         self.victory_points = 1
 
     def multiplier(self):
@@ -32,10 +32,13 @@ class House:
         self.victory_points = 2
 
     def __eq__(self, value):
-        return self.color == value.color and self.point == value.point
+        if isinstance(value, House):
+            return self.point == value.point and self.color == value.color
+        else:
+            return self.point == value
     
     def __repr__(self):
-        return 'House(color' + self.color + ', point:' + str(self.point) + ')'
+        return 'House(color:' + self.color + ', isBigHouse:' + str(self.is_big_house) + ', point:' + str(self.point) + ')'
 
 
 class Robber:
@@ -51,29 +54,39 @@ class Player:
         self.color = color
         self.victory_points = 0
         self.wallet = {'Wood':0, 'Brick':0, 'Sheep':0, 'Wheat':0, 'Stone':0} # list of Resources
-        self.roads = [] # list of Roads
-        self.houses = [] # list of Houses
+        self.trade_routes = ['4 to 1']
 
     def add_resources(self):
         return False
     
-    def buy_road(self, is_placable, points):  #Lucy made this <3
-        # Cost = 1 Brick, 1 Wood   
-        if is_placable:                                                         
-            if self.wallet['Wood'] > 0 and self.wallet['Brick'] > 0:        
-                self.wallet['Wood'] -= 1
-                self.wallet['Brick'] -= 1
-                self.roads.append(Road(self.color, points))
-                return True
-            else:
-                raise Exception('You Poor. Cry')
-        raise Exception('Something went wrong when purchasing.')
+    def buy_road(self):  #Lucy made this <3
+        # Cost = 1 Brick, 1 Wood                                                         
+        if self.wallet['Wood'] > 0 and self.wallet['Brick'] > 0:        
+            self.wallet['Wood'] -= 1
+            self.wallet['Brick'] -= 1
+            return True
+        else:
+            raise Exception('You Poor. Cry')
         
     def buy_house(self):
-        return False
+        # Cost = 1 Brick, 1 Wood, 1 Wheat, 1 Sheep
+        if self.wallet['Wood'] > 0 and self.wallet['Brick'] > 0 and self.wallet['Wheat'] > 0 and self.wallet['Sheep'] > 0:
+            self.wallet['Wood'] -= 1
+            self.wallet['Brick'] -= 1
+            self.wallet['Wheat'] -= 1
+            self.wallet['Sheep'] -= 1
+            return True
+        else:
+            raise Exception('You Poor. Cry')
 
-    def upgrade_house(self, point):
-        return False
+    def upgrade_house(self):
+        # Cost = 2 Wheat, 3 Stone
+        if self.wallet['Wheat'] > 1 and self.wallet['Stone'] > 2:
+            self.wallet['Wheat'] -= 2
+            self.wallet['Stone'] -= 3
+            return True
+        else:
+            raise Exception('You Poor. Cry')
     
     def trade_resource(self, list_of_resources, returned_resource):
         return False
@@ -86,7 +99,7 @@ class Resource_Hex:
         self.dice_score = dice_score
 
     def __repr__(self):
-        return self.resource + ' - ' +  str(self.dice_score)
+        return 'Hex(resource:' + self.resource  + ', dice:' +  str(self.dice_score) + ', points:' + str(self.points) + ')'
     
 
 class Board: 
@@ -110,24 +123,24 @@ class Board:
     def get_hexagon_combinations(self):
         all_combinations = [
             [(0,3),(1,4),(2,4),(3,3),(2,2),(1,2)],
-            [(),(),(),(),(),()],
-            [(),(),(),(),(),()],
-            [(),(),(),(),(),()],
-            [(),(),(),(),(),()],
-            [(),(),(),(),(),()],
-            [(),(),(),(),(),()],
-            [(),(),(),(),(),()],
-            [(),(),(),(),(),()],
-            [(),(),(),(),(),()],
-            [(),(),(),(),(),()],
-            [(),(),(),(),(),()],
-            [(),(),(),(),(),()],
-            [(),(),(),(),(),()],
-            [(),(),(),(),(),()],
-            [(),(),(),(),(),()],
-            [(),(),(),(),(),()],
-            [(),(),(),(),(),()],
-            [(),(),(),(),(),()]
+            [(0,5),(1,6),(2,6),(3,5),(2,4),(1,4)],
+            [(0,7),(1,8),(2,8),(3,7),(2,6),(1,6)],
+            [(2,2),(3,3),(4,3),(5,2),(4,1),(3,1)],
+            [(2,4),(3,5),(4,5),(5,4),(4,3),(3,3)],
+            [(2,6),(3,7),(4,7),(5,6),(4,5),(3,5)],
+            [(2,8),(3,9),(4,9),(5,8),(4,7),(3,7)],
+            [(4,1),(5,2),(6,2),(7,1),(6,0),(5,0)],
+            [(4,3),(5,4),(6,4),(7,3),(6,2),(5,2)],
+            [(4,5),(5,6),(6,6),(7,5),(6,4),(5,4)],
+            [(4,7),(5,8),(6,8),(7,7),(6,6),(5,6)],
+            [(4,9),(5,10),(6,10),(7,9),(6,8),(5,8)],
+            [(6,2),(7,3),(8,3),(9,2),(8,1),(7,1)],
+            [(6,4),(7,5),(8,5),(9,4),(8,3),(7,3)],
+            [(6,6),(7,7),(8,7),(9,6),(8,5),(7,5)],
+            [(6,8),(7,9),(8,9),(9,8),(8,7),(7,7)],
+            [(8,3),(9,4),(10,4),(11,3),(10,2),(9,2)],
+            [(8,5),(9,6),(10,6),(11,5),(10,4),(9,4)],
+            [(8,7),(9,8),(10,8),(11,7),(10,6),(9,6)]
         ]
         return all_combinations
 
@@ -135,7 +148,7 @@ class Board:
         resource_names = dict_of_resources.keys()
         rand_resource_key = resource_names[random.randint(0, len(dict_of_resources) - 1)]
 
-        dict_of_resources[rand_resource_key] = dict_of_resources[rand_resource_key] - 1
+        dict_of_resources[rand_resource_key] -= 1
         if dict_of_resources[rand_resource_key] == 0:
             del dict_of_resources[rand_resource_key]
         return rand_resource_key, dict_of_resources
@@ -143,9 +156,10 @@ class Board:
     def randomize_hexes(self):
         resource_types = {'Wood':4, 'Brick':3, 'Sheep':4, 'Wheat':4, 'Stone':3, 'Desert':1}
         dice_list = [2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12]
+        point_combinations = self.get_hexagon_combinations()
         list_of_hexes = []
-        for i in range(19): #standard size of board
-            points = [(0,0),(0,0),(0,0),(0,0),(0,0),(0,0)]
+        for i in range(19): # standard size of board
+            points = point_combinations[i]
             resource, resource_types = self.random_resource(resource_types)
             dice_score = 0
             if resource == 'Desert':
@@ -167,6 +181,18 @@ class Catan:
     def num_to_color(self, player_count):
         colors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'white', 'black']
         return colors[player_count]
+    
+    def neighbor_points(self, point):
+        neighbors = []
+        for i in range(3):
+            for j in range(3):
+                neighbor = (point[0] - 1 + i, point[1] - 1 + j)
+                neighbors.append(neighbor)
+                if (neighbor[0] < 0 or neighbor[0] > 11 or neighbor[1] < 0 or neighbor[1] > 10):
+                    neighbors.pop()
+                if neighbor == point:
+                    neighbors.pop()
+        return neighbors
     
     def check_in_eight(self, point1, point2):
         #board_size x = 0:10, y = 0:11
@@ -225,7 +251,7 @@ class Catan:
             point2 = obj.points[1]
             if valid_board[point1[0]][point1[1]] == 1:
                 if valid_board[point2[0]][point2[1]] == 1:
-                    if not self.check_in_eight(point1, point2):
+                    if not (point2 in self.neighbor_points(point1)):
                         raise Exception('Points aren\'t near each other.') # Points aren't near each other
                 else:
                     raise Exception('Second Point isn\'t valid.') # Second Point isn't valid
@@ -233,30 +259,27 @@ class Catan:
                 raise Exception('First Point isn\'t valid.') # First Point isn't valid
             
             # CHECK ROAD IS PLAYER ALLOWED
-            player = self.players[obj.color]
-            player_roads = player.roads
-
-            for player_road in player_roads:
-                player_road_p1 = player_road.points[0]
-                player_road_p2 = player_road.points[1]
+            for road in self.get_player_roads(obj.color):
+                player_road_p1 = road.points[0]
+                player_road_p2 = road.points[1]
                 obj_road_p1 = obj.points[0]
                 obj_road_p2 = obj.points[1]
 
                 if player_road_p1 == obj_road_p1:
                     important_point = obj_road_p1
-                    if (self.check_houses_for_roads(important_point, player.color)):
+                    if (self.check_houses_for_roads(important_point, obj.color)):
                         return True
                 elif player_road_p1 == obj_road_p2:
                     important_point = obj_road_p2
-                    if (self.check_houses_for_roads(important_point, player.color)):
+                    if (self.check_houses_for_roads(important_point, obj.color)):
                         return True
                 elif player_road_p2 == obj_road_p1:
                     important_point = obj_road_p1
-                    if (self.check_houses_for_roads(important_point, player.color)):
+                    if (self.check_houses_for_roads(important_point, obj.color)):
                         return True
                 elif player_road_p2 == obj_road_p2:
                     important_point = obj_road_p2
-                    if (self.check_houses_for_roads(important_point, player.color)):
+                    if (self.check_houses_for_roads(important_point, obj.color)):
                         return True
             raise Exception('You don\'t have a connecting road.')
        
@@ -265,16 +288,81 @@ class Catan:
             # CHECK HOUSE ISN'T TAKEN
             for house in self.houses:
                 if house.point == obj.point:
-                    return False
-            return True
+                    raise Exception('House spot is taken.')
+                
+            # CHECK HOUSE IS VALID SPOT
+            valid_board = self.board.get_numerical_board()
+            if not valid_board[obj.point[0]][obj.point[1]] == 1:
+                raise Exception('House is off board.')
+            
+            # CHECK HOUSE IS NOT NEXT TO ANOTHER HOUSE
+            neighbors = self.neighbor_points(obj.point)
+            for house in self.houses:
+                if house.point in neighbors:
+                    raise Exception('House is too close to another.')
+
+            # CHECK HOUSE IS PLAYER ALLOWED
+            player_roads = self.get_player_roads(obj.color)
+            for player_road in player_roads:
+                if obj.point == player_road.points[0] or obj.point == player_road.points[1]:
+                    return True
+            raise Exception('No valid Road connection.')
         else:
-            return False
+            return Exception('Not a road or house?')
+        
+    def get_player_roads(self, color):
+        player_roads = []
+        for road in self.roads:
+            if road.color == color:
+                player_roads.append(road)
+        return player_roads
+    
+    def get_player_houses(self, color):
+        player_houses = []
+        for house in self.houses:
+            if house.color == color:
+                player_houses.append(house)
+        return player_houses
         
     def player_buys_road(self, color, road):
         player = self.players[color]
         try:
-            if player.buy_road(self.check_availability(road), road.points):
-                self.roads.append(road)
-            print('bought road')
+            if color == road.color:
+                if self.check_availability(road):
+                    if player.buy_road():
+                        self.roads.append(road)
+                        print('bought road')
+            else:
+                raise Exception('YOURE THE WRONG PERSON')
+        except Exception as e:
+            print(e)
+
+    def player_buys_house(self, color, house):
+        player = self.players[color]
+        try:
+            if color == house.color:
+                if self.check_availability(house):
+                    if player.buy_house():
+                        self.houses.append(house)
+                        print('bought house')
+            else:
+                raise Exception('YOURE THE WRONG PERSON')
+        except Exception as e:
+            print(e)
+
+    def player_upgrade_house(self, color, house):
+        player = self.players[color]
+        try:
+            if color == house.color:
+                if house in self.houses:
+                    index_of_house = self.houses.index(house)
+                    if player.upgrade_house():
+                        self.houses.pop(index_of_house)
+                        self.houses.append(house)
+                        print('upgraded house')
+                else:
+                    raise Exception('That house doesn\'t exist.')
+            else:
+                raise Exception('YOURE THE WRONG PERSON')
         except Exception as e:
             print(e)
