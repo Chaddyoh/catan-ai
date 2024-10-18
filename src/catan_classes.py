@@ -2,6 +2,23 @@ import random
 
 # (y,x) -> all points in code
 
+# HELPER FUNCTIONS OVERALL
+def dictionary_to_array(diction):
+    arr = []
+    for key in diction.keys():
+        arr += [key for k in range(diction[key])]
+    return arr
+
+def array_to_dictionary(arr):
+    diction = {}
+    for item in arr:
+        if item in diction.keys():
+            diction[item] += 1
+        else:
+            diction[item] = 1
+    return diction
+
+
 # PLAYER BASED CLASSES
 class Road:
     def __init__(self, color, points):
@@ -13,6 +30,7 @@ class Road:
 
     def __repr__(self):
         return 'Road(color:' + self.color + ', points:[' + str(self.points[0]) + '->' + str(self.points[1]) + '])'
+
 
 class House:
     def __init__(self, color, point, is_big_house=False):
@@ -79,6 +97,27 @@ class Player:
         else:
             raise Exception('You Poor. Cry')
 
+    def check_for_trade_options(self, house):
+        point = house.point
+        if point == (0,3) or point == (1,2):
+            self.trade_routes.append('3 to 1')
+        if point == (5,10) or point == (6,10):
+            self.trade_routes.append('3 to 1')
+        if point == (11,5) or point == (10,6):
+            self.trade_routes.append('3 to 1')
+        if point == (11,3) or point == (10,2):
+            self.trade_routes.append('3 to 1')
+        if point == (3,1) or point == (4,1):
+            self.trade_routes.append('2 Wood to 1')
+        if point == (7,1) or point == (8,1):
+            self.trade_routes.append('2 Brick to 1')
+        if point == (8,9) or point == (9,8):
+            self.trade_routes.append('2 Sheep to 1')
+        if point == (0,5) or point == (1,6):
+            self.trade_routes.append('2 Wheat to 1')
+        if point == (2,8) or point == (3,9):
+            self.trade_routes.append('2 Stone to 1')
+
     def upgrade_house(self):
         # Cost = 2 Wheat, 3 Stone
         if self.wallet['Wheat'] > 1 and self.wallet['Stone'] > 2:
@@ -88,9 +127,57 @@ class Player:
         else:
             raise Exception('You Poor. Cry')
     
-    def trade_resource(self, list_of_resources, returned_resource):
-        return False
+    def trade_resource(self, dict_of_resources, returned_resource):
+        # CHECK THEY HAVE THOSE RESOURCES
+        for key in self.wallet.keys():
+            if not self.wallet[key] >= dict_of_resources[key]:
+                raise Exception('You don\'t have those resources.')
+        
+        array_of_resources = dictionary_to_array(dict_of_resources)
+            
+        # CHECK THEIR TRADE OPTIONS
+        if '2 Wood to 1' in self.trade_routes:
+            if dict_of_resources['Wood'] > 1:
+                self.wallet['Wood'] -= 2
+                self.wallet[returned_resource] += 1
+
+        elif '2 Brick to 1' in self.trade_routes:
+            if dict_of_resources['Brick'] > 1:
+                self.wallet['Brick'] -= 2
+                self.wallet[returned_resource] += 1
+
+        elif '2 Sheep to 1' in self.trade_routes:
+            if dict_of_resources['Sheep'] > 1:
+                self.wallet['Sheep'] -= 2
+                self.wallet[returned_resource] += 1
+
+        elif '2 Wheat to 1' in self.trade_routes:
+            if dict_of_resources['Wheat'] > 1:
+                self.wallet['Wheat'] -= 2
+                self.wallet[returned_resource] += 1
+
+        elif '2 Stone to 1' in self.trade_routes:
+            if dict_of_resources['Stone'] > 1:
+                self.wallet['Stone'] -= 2
+                self.wallet[returned_resource] += 1
+
+        elif '3 to 1' in self.trade_routes:
+            if len(array_of_resources) > 2:
+                spent_resources = array_of_resources[0:3]
+                dict_of_spent = array_to_dictionary(spent_resources)
+                for key in dict_of_spent.keys():
+                    self.wallet[key] -= dict_of_spent[key]
+                
+        elif '4 to 1' in self.trade_routes:
+            if len(array_of_resources) > 3:
+                spent_resources = array_of_resources[0:4]
+                dict_of_spent = array_to_dictionary(spent_resources)
+                for key in dict_of_spent.keys():
+                    self.wallet[key] -= dict_of_spent[key]
+
+        raise Exception('No possible trades.')
     
+
 # BOARD BASED CLASSES
 class Resource_Hex:
     def __init__(self, points, resource, dice_score):
@@ -343,6 +430,7 @@ class Catan:
             if color == house.color:
                 if self.check_availability(house):
                     if player.buy_house():
+                        player.check_for_trade_options(house)
                         self.houses.append(house)
                         print('bought house')
             else:
@@ -364,5 +452,12 @@ class Catan:
                     raise Exception('That house doesn\'t exist.')
             else:
                 raise Exception('YOURE THE WRONG PERSON')
+        except Exception as e:
+            print(e)
+
+    def player_trade_resource(self, color, trade_resources, returned_resource):
+        player = self.players[color]
+        try:
+            player.trade_resource(trade_resources, returned_resource)
         except Exception as e:
             print(e)
