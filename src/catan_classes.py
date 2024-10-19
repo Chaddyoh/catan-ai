@@ -61,10 +61,10 @@ class House:
 
 class Robber:
     def __init__(self):
-        self.point = (0, 0)
+        self.hex_point = -1
 
     def move(self, point):
-        self.point = point
+        self.hex_point = point
 
 
 class Player:
@@ -140,26 +140,36 @@ class Player:
             if dict_of_resources['Wood'] > 1:
                 self.wallet['Wood'] -= 2
                 self.wallet[returned_resource] += 1
+                spent_resources = ['Wood', 'Wood']
+                return spent_resources, returned_resource
 
         elif '2 Brick to 1' in self.trade_routes:
             if dict_of_resources['Brick'] > 1:
                 self.wallet['Brick'] -= 2
                 self.wallet[returned_resource] += 1
+                spent_resources = ['Brick', 'Brick']
+                return spent_resources, returned_resource
 
         elif '2 Sheep to 1' in self.trade_routes:
             if dict_of_resources['Sheep'] > 1:
                 self.wallet['Sheep'] -= 2
                 self.wallet[returned_resource] += 1
+                spent_resources = ['Sheep', 'Sheep']
+                return spent_resources, returned_resource
 
         elif '2 Wheat to 1' in self.trade_routes:
             if dict_of_resources['Wheat'] > 1:
                 self.wallet['Wheat'] -= 2
                 self.wallet[returned_resource] += 1
+                spent_resources = ['Wheat', 'Wheat']
+                return spent_resources, returned_resource
 
         elif '2 Stone to 1' in self.trade_routes:
             if dict_of_resources['Stone'] > 1:
                 self.wallet['Stone'] -= 2
                 self.wallet[returned_resource] += 1
+                spent_resources = ['Stone', 'Stone']
+                return spent_resources, returned_resource
 
         elif '3 to 1' in self.trade_routes:
             if len(array_of_resources) > 2:
@@ -167,6 +177,7 @@ class Player:
                 dict_of_spent = array_to_dictionary(spent_resources)
                 for key in dict_of_spent.keys():
                     self.wallet[key] -= dict_of_spent[key]
+                return spent_resources, returned_resource
                 
         elif '4 to 1' in self.trade_routes:
             if len(array_of_resources) > 3:
@@ -174,19 +185,27 @@ class Player:
                 dict_of_spent = array_to_dictionary(spent_resources)
                 for key in dict_of_spent.keys():
                     self.wallet[key] -= dict_of_spent[key]
+                return spent_resources, returned_resource
 
         raise Exception('No possible trades.')
     
 
 # BOARD BASED CLASSES
 class Resource_Hex:
-    def __init__(self, points, resource, dice_score):
+    def __init__(self, points, hex_point, resource, dice_score):
         self.points = points
+        self.hex_point = hex_point
         self.resource = resource
         self.dice_score = dice_score
 
     def __repr__(self):
         return 'Hex(resource:' + self.resource  + ', dice:' +  str(self.dice_score) + ', points:' + str(self.points) + ')'
+    
+    def __eq__(self, value):
+        if isinstance(value, int):
+            return self.dice_score == value
+        elif isinstance(value, str):
+            return self.resource == value
     
 
 class Board: 
@@ -255,7 +274,7 @@ class Board:
                 random_score = random.randint(0, len(dice_list) - 1)
                 dice_score = dice_list[random_score]
                 dice_list.pop(random_score)
-            resource_hex = Resource_Hex(points=points, resource=resource, dice_score=dice_score)
+            resource_hex = Resource_Hex(points=points, hex_point=i, resource=resource, dice_score=dice_score)
             list_of_hexes.append(resource_hex)
 
         return list_of_hexes
@@ -322,8 +341,15 @@ class Catan:
     def __init__(self, player_count):
         self.players = {self.num_to_color(k):Player(self.num_to_color(k)) for k in range(player_count)}
         self.board = Board()
+        self.robber = Robber()
         self.roads = []
         self.houses = []
+        self.card_count = {'Wood':19, 'Brick':19, 'Sheep':19, 'Wheat':19, 'Stone':19, 'Development Card':25}
+        self.development_count = {'Knight':14, 'Victory':5, 'Road':2, 'Plenty':2, 'Monopoly':2}
+
+        for hex in self.board.hexes:
+            if hex == 'Desert':
+                self.robber.move(hex.hex_point)
 
     def check_availability(self, obj):
         if isinstance(obj, Road):
@@ -397,6 +423,11 @@ class Catan:
         else:
             return Exception('Not a road or house?')
         
+    def roll_dice(self):
+        dice1 = random.randint(1,6)
+        dice2 = random.randint(1,6)
+        return dice1 + dice2
+        
     def get_player_roads(self, color):
         player_roads = []
         for road in self.roads:
@@ -458,6 +489,93 @@ class Catan:
     def player_trade_resource(self, color, trade_resources, returned_resource):
         player = self.players[color]
         try:
-            player.trade_resource(trade_resources, returned_resource)
+            if self.card_count[returned_resource] > 0:
+                spent_resources, bought_resource = player.trade_resource(trade_resources, returned_resource)
+                # UPDATE THE TOTAL CARD COUNT
+                self.card_count[bought_resource] -= 1
+                for card in spent_resources:
+                    self.card_count[card] += 1
+            else:
+                raise Exception('No more of that resource.')
         except Exception as e:
             print(e)
+
+    def give_players_resources(self, dice_roll):
+        player_wins = {}
+        for color in self.players.keys():
+            player_wins[color] = {'Wood':0, 'Brick':0, 'Sheep':0, 'Wheat':0, 'Stone':0}
+        total_wins = {'Wood':0, 'Brick':0, 'Sheep':0, 'Wheat':0, 'Stone':0}
+
+        # Calculate the cards to give per dice roll
+        for hex in self.board.hexes:
+            if hex == dice_roll:
+                if not hex.hex_point == self.robber.hex_point:
+                    for point in hex.points:
+                        for house in self.houses:
+                            if house.point == point:
+                                if house.is_big_house:
+                                    player_wins[house.color][hex.resource] += 2
+                                    total_wins[hex.resource] += 2
+                                else:
+                                    player_wins[house.color][hex.resource] += 1
+                                    total_wins[hex.resource] += 1
+
+        # Check there's enough resources
+        for res in total_wins.keys():
+            if total_wins[res] > self.card_count[res]: # Not enough card count for asked resources
+                player_has = []
+                for color in self.player.keys():
+                    if player_wins[color][res] > 0:
+                        player_has.append(color)
+                if len(player_has) > 1: # More than one person wants that resource
+                    pass # No one gets it
+                elif len(player_has) == 1: # That one person gets the rest of the resources
+                    self.players[player_has[0]].wallet[res] += self.card_count[res]
+                    self.card_count[res] = 0
+            else: # Has enough for everyone
+                for color in self.players.keys():
+                    self.player[color].wallet[res] += player_wins[color][res]
+                    self.card_count[res] -= player_wins[color][res]
+
+    def move_robber(self, hex_point):
+        if hex_point == self.robber.hex_point:
+            raise Exception('Can\'t pick the same spot.')
+        
+        self.robber.hex_point = hex_point
+
+        # get the hex so you can find players affected
+        affected_players = []
+        for hex in self.board.hexes:
+            if hex.hex_point == hex_point:
+                for point in hex.points:
+                    for house in self.houses:
+                        if house.point == point:
+                            affected_players.append(house.color)
+        return affected_players
+    
+    def player_steal_item(self, color, affected_players, chosen_player_color = None):
+        if not len(affected_players) == 0:
+            if chosen_player_color in affected_players:
+                chosen_player = self.players[chosen_player_color]
+                player = self.players[color]
+                array_wallet = dictionary_to_array(chosen_player.wallet)
+                if len(array_wallet) == 0:
+                    raise Exception('They\'re poor come on you can\'t do that.')
+                else:
+                    stolen_item = array_wallet[random.randint(0, (len(array_wallet) - 1))]
+                    chosen_player.wallet[stolen_item] -= 1
+                    player.wallet[stolen_item] += 1
+            elif chosen_player_color != None: # Chose a non-zero person
+                raise Exception('You can\'t steal from ' + chosen_player_color + '.') 
+            else:
+                raise Exception('You need to pick someone who is affected.')
+            
+    def cut_in_half(self):
+        for color in self.players.keys():
+            player = self.players[color]
+            array_wallet = dictionary_to_array(player.wallet)
+            if len(array_wallet) > 7:
+                random.shuffle(array_wallet)
+                array_wallet = array_wallet[0 : int(len(array_wallet) / 2)]
+            new_wallet = array_to_dictionary(array_wallet)
+            player.wallet = new_wallet

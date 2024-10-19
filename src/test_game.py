@@ -19,7 +19,11 @@ catan.players['blue'].wallet['Stone'] = 3
 house2 = House('blue', (1,4), True)
 catan.player_upgrade_house('blue', house2)
 
-
-ones = {'Wood':1,'Brick':2,'Sheep':3,'Wheat':4,'Stone':5}
-
-print(array_to_dictionary(dictionary_to_array(ones)))
+organized = [1,2,3,4,5]
+print(organized)
+random.shuffle(organized)
+print(organized)
+random.shuffle(organized)
+print(organized)
+random.shuffle(organized)
+print(organized)
